@@ -21,6 +21,8 @@ from database.db import (
 from services.chunker import split_text_into_chunks, chunk_document_pages
 from utils.helpers import clean_text, extract_json, estimate_tokens
 from services.vector_store import FAISSVectorStore
+from services.pdf import extract_text_from_pdf
+from utils.generate_sample_pdf import generate_minimal_pdf
 
 
 def test_helpers():
@@ -64,19 +66,19 @@ def test_database_crud(tmp_path):
     test_db = tmp_path / "test.db"
     init_db(test_db)
 
-    conv_id = create_conversation("Test Session", mode="general")
+    conv_id = create_conversation("Test Session", mode="general", db_path=test_db)
     assert conv_id is not None
 
-    add_message(conv_id, "user", "What is backpropagation?")
-    add_message(conv_id, "assistant", "Backpropagation is the reverse pass of calculating gradients.")
+    add_message(conv_id, "user", "What is backpropagation?", db_path=test_db)
+    add_message(conv_id, "assistant", "Backpropagation is the reverse pass of calculating gradients.", db_path=test_db)
 
-    msgs = get_messages(conv_id)
+    msgs = get_messages(conv_id, db_path=test_db)
     assert len(msgs) == 2
     assert msgs[0]["role"] == "user"
     assert msgs[1]["role"] == "assistant"
 
-    delete_conversation(conv_id)
-    assert len(get_messages(conv_id)) == 0
+    delete_conversation(conv_id, db_path=test_db)
+    assert len(get_messages(conv_id, db_path=test_db)) == 0
 
 
 def test_faiss_vector_store():
@@ -104,3 +106,17 @@ def test_faiss_vector_store():
     assert len(results) == 2
     assert results[0]["chunk_id"] in (1, 2)
     assert "score" in results[0]
+
+
+def test_pdf_extraction_and_chunking(tmp_path):
+    pdf_path = tmp_path / "sample.pdf"
+    generate_minimal_pdf(str(pdf_path))
+
+    with open(pdf_path, "rb") as f:
+        pdf_bytes = f.read()
+
+    pages, stats = extract_text_from_pdf(pdf_bytes, "sample.pdf")
+    assert stats["page_count"] == 3
+    assert stats["char_count"] > 0
+    assert len(pages) == 3
+    assert "Gradient Descent" in pages[0]["text"]

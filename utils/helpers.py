@@ -11,13 +11,13 @@ from contextlib import contextmanager
 
 
 def clean_text(text: str) -> str:
-    """Normalize whitespace and remove unwanted control characters."""
+    """Normalize whitespace, trim individual lines, and remove unwanted control characters."""
     if not text:
         return ""
-    # Replace multiple newlines or tabs with consistent formatting
     text = re.sub(r"\r\n|\r", "\n", text)
+    lines = [re.sub(r"[ \t]+", " ", line).strip() for line in text.split("\n")]
+    text = "\n".join(lines)
     text = re.sub(r"\n{3,}", "\n\n", text)
-    text = re.sub(r"[ \t]+", " ", text)
     return text.strip()
 
 
